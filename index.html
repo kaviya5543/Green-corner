@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Green Corner | Pro Version</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="nav-container">
+            <div class="logo" onclick="showSection('shop-view')">🌿 The Green Corner</div>
+            <div class="nav-links">
+                <span onclick="showSection('shop-view')" style="cursor: pointer;">Shop</span>
+                <span onclick="showSection('tracking-view')" style="cursor: pointer;">Track Order</span>
+                <span onclick="showSection('add-product-view')" style="cursor: pointer;">Add Product</span>
+                <span onclick="showSection('admin-view'); loadAdminOrders();" style="color: #e67e22; font-weight: bold; cursor: pointer;">Admin Panel</span>
+            </div>
+            <div class="nav-buttons">
+<button id="wishlistToggleBtn" class="nav-btn" onclick="toggleWishlist()">
+    Wishlist (<span id="wishlist-count">0</span>)
+</button>
+
+<button id="cartToggleBtn" class="nav-btn cart-btn" onclick="toggleCart()">Cart (<span id="cart-count">0</span>)</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="shop-view" class="view-section active">
+        <section class="hero">
+            <h1>Add a Touch of Nature to Every Room</h1>
+            <p>Fill your home with freshness, beauty, and the calming touch of vibrant indoor plants..</p>
+        </section>
+        <main class="shop-container">
+            <h2 class="section-title">Our Plant Collection</h2>
+            <div class="products-grid" id="plant-grid-container">
+                <p style="grid-column: 1 / -1; text-align: center; color: #888; padding: 40px 0;">Synchronizing store catalog...</p>
+            </div>
+        </main>
+    </div>
+
+    <div id="tracking-view" class="view-section container-box">
+        <h2>📦 Track Customer Order</h2>
+        <p>Enter your tracking reference ID below to see live fulfillment updates, or choose a past order from history.</p>
+        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="trackingInput" placeholder="e.g., ORD-123456" style="flex-grow:1; min-width: 240px; padding:12px; border-radius:6px; border:1px solid #ccc;">
+            <button class="action-btn" style="width:auto; padding:0 30px;" onclick="trackOrder()">Track Status</button>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3 style="margin-bottom: 12px;">Recent Orders</h3>
+            <div id="orderHistoryList" style="display:grid; gap:12px;"></div>
+        </div>
+
+        <div id="trackingResultDisplay" class="tracking-card" style="display: none;"></div>
+    </div>
+
+    <div id="add-product-view" class="view-section container-box">
+        <h2 style="color: var(--accent-color);">➕ Add New Product</h2>
+        <p>Use this page to add new plants to the storefront catalog.</p>
+        <div class="add-product-section" style="margin-top: 20px; padding: 25px; background: #fafafa; border-radius: 8px; border: 1px solid #eee;">
+            <form id="addProductForm" class="add-product-form" onsubmit="addNewProduct(event)">
+                <div>
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px;">Plant Name</label>
+                    <input type="text" id="prodName" required placeholder="e.g. Lavender Plant" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px;">Price (₹)</label>
+                    <input type="number" id="prodPrice" required placeholder="e.g. 350" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px;">Upload Product Image</label>
+                    <input type="file" id="prodImgFile" accept="image/*" required style="width: 100%; padding: 7px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; background: #fff;">
+                </div>
+                <div style="grid-column: 1 / -1; text-align: right; margin-top: 10px;">
+                    <button type="submit" class="action-btn" style="width: auto; padding: 10px 30px;">Add Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-view" class="view-section container-box">
+        <h2 style="color: var(--accent-color);">⚙️ Store Fulfillment Console</h2>
+        <p>Monitor customer checkouts, verify system logging routes, and update fulfillment milestones.</p>
+        <div class="admin-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top: 20px;">
+            <div>
+                <h3 style="margin:0;">Orders List</h3>
+                <p style="margin: 5px 0 0; color: #666;">Manage all tracked orders and update their current status.</p>
+            </div>
+            <button class="action-btn" style="width:auto; padding: 10px 20px; background:#e74c3c;" onclick="deleteAllOrders()">Delete All Orders</button>
+        </div>
+        <div class="table-responsive" style="margin-top: 25px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Contact & Address</th>
+                        <th>Items Bought</th>
+                        <th>Total Price</th>
+                        <th>Payment Type</th>
+                        <th>Current State</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="adminOrdersTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal-box">
+            <h3>Complete Store Checkout</h3>
+            <p style="margin-bottom:15px;">Grand Total Due: <strong id="modalTotalAmount">₹0</strong></p>
+            
+            <form id="paymentForm" onsubmit="handleCheckoutSubmission(event)">
+                <label>Customer Full Name</label>
+                <input type="text" id="custName" required placeholder="Kaviya">
+
+                <label>Shipping Delivery Address</label>
+                <input type="text" id="custAddress" required placeholder="Gudalur, The Nilgiris">
+
+                <label>Mobile Phone Number</label>
+                <input type="tel" id="custPhone" required placeholder="9876543210">
+
+                <label>Select Payment Gateway Preference</label>
+                <div class="payment-selector-box">
+                    <label class="radio-label">
+                        <input type="radio" name="paymentType" value="COD" checked onclick="togglePaymentFields(false)">
+                        💵 Cash on Delivery (COD)
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="paymentType" value="CARD" onclick="togglePaymentFields(true)">
+                        💳 Secure Credit/Debit Card
+                    </label>
+                </div>
+
+                <div id="cardDetailsFormFields" style="display: none;">
+                    <label>Card Number</label>
+                    <input type="text" id="cardNumber" placeholder="1234 5678 9101 1121">
+                    <div class="form-row">
+                        <div>
+                            <label>Expiry Date</label>
+                            <input type="text" id="cardExpiry" placeholder="MM/YY">
+                        </div>
+                        <div>
+                            <label>CVV</label>
+                            <input type="password" id="cardCvv" placeholder="***">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closePaymentModal()">Modify Cart</button>
+                    <button type="submit" class="pay-btn" style="background: var(--primary-color);">Place Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="sidebar" id="cartSidebar">
+        <div class="sidebar-header"><h2>Your Cart</h2><button class="close-btn" onclick="toggleCart()">&times;</button></div>
+        <div class="sidebar-content" id="cartItemsList"></div>
+        <div class="sidebar-footer">
+            <div class="total-row"><span>Total:</span><span id="cartTotalValue">₹0</span></div>
+            <button class="action-btn" onclick="openPaymentModal()">Proceed to Checkout</button>
+        </div>
+    </div>
+    
+    <div class="sidebar" id="wishlistSidebar">
+        <div class="sidebar-header"><h2>Your Wishlist ❤</h2><button class="close-btn" onclick="toggleWishlist()">&times;</button></div>
+        <div class="sidebar-content" id="wishlistItemsList"></div>
+    </div>
+
+    <div id="pageOverlay" class="page-overlay" onclick="closeSidebars()"></div>
+
+<script type="module" src="script.js" defer></script>
+</body>
+</html>

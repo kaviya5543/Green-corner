@@ -82,30 +82,115 @@
 
     <div id="admin-view" class="view-section container-box">
         <h2 style="color: var(--accent-color);">⚙️ Store Fulfillment Console</h2>
-        <p>Monitor customer checkouts, verify system logging routes, and update fulfillment milestones.</p>
-        <div class="admin-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top: 20px;">
-            <div>
-                <h3 style="margin:0;">Orders List</h3>
-                <p style="margin: 5px 0 0; color: #666;">Manage all tracked orders and update their current status.</p>
-            </div>
-            <button class="action-btn" style="width:auto; padding: 10px 20px; background:#e74c3c;" onclick="deleteAllOrders()">Delete All Orders</button>
+        <p>Monitor customer checkouts, manage products, and verify system logging routes.</p>
+        
+        <!-- Admin Tabs Navigation -->
+        <div class="admin-tabs-container" style="display: flex; gap: 10px; margin: 20px 0; border-bottom: 2px solid #eee; flex-wrap: wrap;">
+            <button class="admin-tab-btn active" onclick="switchAdminTab('orders-tab', event)" style="padding: 12px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: var(--primary-color); border-bottom: 3px solid transparent; transition: all 0.3s;">📦 Orders Management</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('products-tab', event)" style="padding: 12px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #999; border-bottom: 3px solid transparent; transition: all 0.3s;">🌿 Products Management</button>
         </div>
-        <div class="table-responsive" style="margin-top: 25px;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Contact & Address</th>
-                        <th>Items Bought</th>
-                        <th>Total Price</th>
-                        <th>Payment Type</th>
-                        <th>Current State</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="adminOrdersTableBody"></tbody>
-            </table>
+
+        <!-- ORDERS TAB -->
+        <div id="orders-tab" class="admin-tab-content active" style="display: block;">
+            <div class="admin-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top: 20px;">
+                <div>
+                    <h3 style="margin:0;">Orders List</h3>
+                    <p style="margin: 5px 0 0; color: #666;">Manage all tracked orders and update their current status.</p>
+                </div>
+                <button class="action-btn" style="width:auto; padding: 10px 20px; background:#e74c3c;" onclick="deleteAllOrders()">Delete All Orders</button>
+            </div>
+            <div class="table-responsive" style="margin-top: 25px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Contact & Address</th>
+                            <th>Items Bought</th>
+                            <th>Total Price</th>
+                            <th>Payment Type</th>
+                            <th>Current State</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminOrdersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PRODUCTS TAB -->
+        <div id="products-tab" class="admin-tab-content" style="display: none;">
+            <div class="admin-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top: 20px;">
+                <div>
+                    <h3 style="margin:0;">Products Inventory</h3>
+                    <p style="margin: 5px 0 0; color: #666;">Edit or remove products from your catalog. Use the separate product page to add new items.</p>
+                </div>
+            </div>
+            <div class="table-responsive" style="margin-top: 25px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product ID</th>
+                            <th>Product Name</th>
+                            <th>Price (₹)</th>
+                            <th>Image Preview</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminProductsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Order Details -->
+    <div class="modal-overlay" id="editOrderModal">
+        <div class="modal-box">
+            <h3>Edit Order Details</h3>
+            <form id="editOrderForm" onsubmit="handleEditOrderSubmission(event)">
+                <label>Order ID (Read-only)</label>
+                <input type="text" id="editOrderId" readonly style="background: #f5f5f5;">
+
+                <label>Customer Name</label>
+                <input type="text" id="editOrderCustomer" required placeholder="Customer Name">
+
+                <label>Delivery Address</label>
+                <input type="text" id="editOrderAddress" required placeholder="Delivery Address">
+
+                <label>Phone Number</label>
+                <input type="tel" id="editOrderPhone" required placeholder="Phone Number">
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeEditOrderModal()">Cancel</button>
+                    <button type="submit" class="pay-btn" style="background: var(--primary-color);">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Add/Edit Product -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal-box">
+            <h3 id="productModalTitle">Add New Product</h3>
+            <form id="productModalForm" onsubmit="handleProductSubmission(event)">
+                <input type="hidden" id="productModalId">
+                <input type="hidden" id="productModalExistingImage">
+
+                <label>Product Name</label>
+                <input type="text" id="productModalName" required placeholder="e.g., Monstera Deliciosa">
+
+                <label>Price (₹)</label>
+                <input type="number" id="productModalPrice" required placeholder="e.g., 1299" min="1">
+
+                <label>Upload Product Image</label>
+                <input type="file" id="productModalImage" accept="image/*" placeholder="Select image">
+                <small style="display:block; margin-top: 6px; color:#666;">Leave blank to keep the current image when editing.</small>
+
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn" onclick="closeProductModal()">Cancel</button>
+                    <button type="submit" class="pay-btn" style="background: var(--primary-color);">Save Product</button>
+                </div>
+            </form>
         </div>
     </div>
 

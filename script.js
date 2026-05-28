@@ -554,15 +554,16 @@ async function loadAdminOrders() {
                     <td>${order.paymentMethod || 'COD'}</td>
                     <td><span class="badge ${getStatusBadgeClass(orderStatus)}">${orderStatus}</span></td>
                     <td>
-                        <div style="display: flex; gap: 5px; align-items: center;">
-                            <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                            <select onchange="updateOrderStatus('${order.id}', this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px;">
                                 <option value="Order Placed" ${orderStatus === 'Order Placed' ? 'selected' : ''}>Order Placed</option>
                                 <option value="Packed" ${orderStatus === 'Packed' ? 'selected' : ''}>Packed</option>
                                 <option value="In Transit" ${orderStatus === 'In Transit' ? 'selected' : ''}>In Transit</option>
                                 <option value="Delivered" ${orderStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
                                 <option value="Cancelled" ${orderStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
                             </select>
-                            <button onclick="deleteOrder('${order.id}')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;" title="Delete Order">🗑️</button>
+                            <button onclick="openEditOrderModal('${order.id}')" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">✏️</button>
+                            <button onclick="deleteOrder('${order.id}')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -695,6 +696,299 @@ window.deleteAllOrders = deleteAllOrders;
 window.loadProducts = loadProducts;
 window.addNewProduct = addNewProduct;
 window.selectOrder = selectOrder;
+
+// ============= NEW ADMIN CRUD FUNCTIONS =============
+
+// Switch between admin panel tabs
+function switchAdminTab(tabName, event) {
+    // Hide all tabs
+    document.querySelectorAll('.admin-tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.style.color = '#999';
+        btn.style.borderBottom = '3px solid transparent';
+    });
+
+    // Show selected tab
+    const tabElement = document.getElementById(tabName);
+    if (tabElement) {
+        tabElement.style.display = 'block';
+    }
+
+    // Update button styling
+    if (event && event.currentTarget) {
+        event.currentTarget.style.color = 'var(--primary-color)';
+        event.currentTarget.style.borderBottom = '3px solid var(--primary-color)';
+    }
+
+    // Load data for the tab
+    if (tabName === 'products-tab') {
+        loadAdminProducts();
+    }
+}
+
+// Load all products for admin panel
+async function loadAdminProducts() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/products`);
+        const products = response.ok ? await response.json() : [];
+        
+        const tableBody = document.getElementById("adminProductsTableBody");
+        if (!tableBody) return;
+        tableBody.innerHTML = "";
+
+        if (products.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">No products found. Add one to get started!</td></tr>';
+            return;
+        }
+
+        products.forEach((product) => {
+            const imgPreview = product.imgUrl?.startsWith('data:') 
+                ? product.imgUrl 
+                : product.imgUrl || 'https://via.placeholder.com/50';
+
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${product.id}</td>
+                    <td><strong>${product.name}</strong></td>
+                    <td>₹${product.price}</td>
+                    <td><img src="${imgPreview}" alt="${product.name}" style="max-width: 50px; max-height: 50px; border-radius: 4px;"></td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="openEditProductModal('${product.id}')" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">✏️ Edit</button>
+                            <button onclick="deleteProduct('${product.id}')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error("Error loading admin products: ", e);
+    }
+}
+
+// Open add product modal
+function openAddProductModal() {
+    document.getElementById("productModalTitle").textContent = "Add New Product";
+    document.getElementById("productModalId").value = "";
+    document.getElementById("productModalName").value = "";
+    document.getElementById("productModalPrice").value = "";
+    document.getElementById("productModalImage").value = "";
+    document.getElementById("productModal").classList.add("active");
+}
+
+// Open edit product modal
+async function openEditProductModal(productId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/products`);
+        const products = response.ok ? await response.json() : [];
+        const product = products.find(p => p.id === productId);
+
+        if (!product) {
+            alert("Product not found!");
+            return;
+        }
+
+        document.getElementById("productModalTitle").textContent = "Edit Product";
+        document.getElementById("productModalId").value = productId;
+        document.getElementById("productModalExistingImage").value = product.imgUrl || "";
+        document.getElementById("productModalName").value = product.name;
+        document.getElementById("productModalPrice").value = product.price;
+        document.getElementById("productModal").classList.add("active");
+    } catch (e) {
+        console.error("Error loading product for editing: ", e);
+        alert("Failed to load product details.");
+    }
+}
+
+// Close product modal
+function closeProductModal() {
+    document.getElementById("productModal").classList.remove("active");
+}
+
+// Handle product submission (add or edit)
+async function handleProductSubmission(event) {
+    event.preventDefault();
+
+    const productId = document.getElementById("productModalId").value;
+    const name = document.getElementById("productModalName").value.trim();
+    const price = parseInt(document.getElementById("productModalPrice").value.trim());
+    const fileInput = document.getElementById("productModalImage");
+    const imgFile = fileInput.files[0];
+
+    if (!name || isNaN(price)) {
+        alert("Please fill out all fields correctly.");
+        return;
+    }
+
+    try {
+        let imgUrl = null;
+
+        if (imgFile) {
+            // Compress and convert image to base64
+            const reader = new FileReader();
+            imgUrl = await new Promise((resolve, reject) => {
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement("canvas");
+                        const MAX_WIDTH = 500;
+                        const MAX_HEIGHT = 500;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL("image/webp", 0.8));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(imgFile);
+            });
+        } else if (productId) {
+            imgUrl = document.getElementById("productModalExistingImage").value || null;
+        }
+
+        const method = productId ? 'PUT' : 'POST';
+        const url = productId 
+            ? `${API_BASE_URL}/api/products/${productId}` 
+            : `${API_BASE_URL}/api/products`;
+        
+        const payload = { name, price };
+        if (imgUrl) payload.imgUrl = imgUrl;
+        if (!productId && !imgUrl) {
+            alert("Please select a product image.");
+            return;
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to ${productId ? 'update' : 'add'} product`);
+        }
+
+        alert(`Product ${productId ? 'updated' : 'added'} successfully!`);
+        closeProductModal();
+        loadAdminProducts();
+        loadProducts(); // Refresh storefront
+    } catch (err) {
+        console.error("Error submitting product: ", err);
+        alert("Failed to save product. Please try again.");
+    }
+}
+
+// Delete product
+async function deleteProduct(productId) {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to delete product");
+        }
+
+        alert("Product deleted successfully!");
+        loadAdminProducts();
+        loadProducts(); // Refresh storefront
+    } catch (err) {
+        console.error("Error deleting product: ", err);
+        alert("Failed to delete product.");
+    }
+}
+
+// Open edit order modal
+async function openEditOrderModal(orderId) {
+    try {
+        const docRef = doc(db, "orders", orderId);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            alert("Order not found!");
+            return;
+        }
+
+        const orderData = docSnap.data();
+        document.getElementById("editOrderId").value = orderId;
+        document.getElementById("editOrderCustomer").value = orderData.customerName || '';
+        document.getElementById("editOrderAddress").value = orderData.address || '';
+        document.getElementById("editOrderPhone").value = orderData.phone || '';
+        document.getElementById("editOrderModal").classList.add("active");
+    } catch (e) {
+        console.error("Error loading order for editing: ", e);
+        alert("Failed to load order details.");
+    }
+}
+
+// Close edit order modal
+function closeEditOrderModal() {
+    document.getElementById("editOrderModal").classList.remove("active");
+}
+
+// Handle edit order submission
+async function handleEditOrderSubmission(event) {
+    event.preventDefault();
+
+    const orderId = document.getElementById("editOrderId").value;
+    const customerName = document.getElementById("editOrderCustomer").value.trim();
+    const address = document.getElementById("editOrderAddress").value.trim();
+    const phone = document.getElementById("editOrderPhone").value.trim();
+
+    if (!customerName || !address || !phone) {
+        alert("Please fill in all fields.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customerName, address, phone })
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to update order");
+        }
+
+        alert("Order updated successfully!");
+        closeEditOrderModal();
+        loadAdminOrders();
+    } catch (err) {
+        console.error("Error updating order: ", err);
+        alert("Failed to update order.");
+    }
+}
+
+window.switchAdminTab = switchAdminTab;
+window.loadAdminProducts = loadAdminProducts;
+window.openAddProductModal = openAddProductModal;
+window.openEditProductModal = openEditProductModal;
+window.closeProductModal = closeProductModal;
+window.handleProductSubmission = handleProductSubmission;
+window.deleteProduct = deleteProduct;
+window.openEditOrderModal = openEditOrderModal;
+window.closeEditOrderModal = closeEditOrderModal;
+window.handleEditOrderSubmission = handleEditOrderSubmission;
 
 document.addEventListener("DOMContentLoaded", () => {
     renderUI();

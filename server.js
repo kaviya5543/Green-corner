@@ -1,5 +1,6 @@
 const express = require('express');
 const admin = require('firebase-admin');
+const fs = require('fs');
 const path = require('path');
 const app = express();
 
@@ -35,6 +36,12 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use((req, res, next) => {
+    try {
+        fs.appendFileSync(path.join(__dirname, 'req.log'), `${new Date().toISOString()} ${req.method} ${req.url}\n`);
+    } catch (e) {
+        console.error('Request log write failed:', e);
+    }
+    console.log('REQ', req.method, req.url);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -48,8 +55,10 @@ app.use((req, res, next) => {
 // 2. BACKEND API ENDPOINTS
 // =========================================================================
 
+const apiRouter = express.Router();
+
 // API: Submit a new order into Firebase
-app.post('/api/orders', async (expressReq, expressRes) => {
+apiRouter.post('/orders', async (expressReq, expressRes) => {
     const { customerName, items, total, paymentMethod, address, phone } = expressReq.body;
     
     if (!customerName || !items || !total || !paymentMethod) {
@@ -80,7 +89,7 @@ app.post('/api/orders', async (expressReq, expressRes) => {
 });
 
 // API: Track an individual order item by its ID parameters
-app.get('/api/orders/track/:id', async (expressReq, expressRes) => {
+apiRouter.get('/orders/track/:id', async (expressReq, expressRes) => {
     const trackingId = expressReq.params.id;
 
     try {
@@ -96,7 +105,7 @@ app.get('/api/orders/track/:id', async (expressReq, expressRes) => {
 });
 
 // API: Retrieve all orders for the Admin Dashboard Table View
-app.get('/api/orders', async (expressReq, expressRes) => {
+apiRouter.get('/orders', async (expressReq, expressRes) => {
     try {
         const snapshot = await db.ref('orders').once('value');
         if (snapshot.exists()) {
@@ -113,7 +122,7 @@ app.get('/api/orders', async (expressReq, expressRes) => {
 });
 
 // API: Update order tracking status (Admin Control Layer)
-app.patch('/api/orders/:id/status', async (expressReq, expressRes) => {
+apiRouter.patch('/orders/:id/status', async (expressReq, expressRes) => {
     const orderId = expressReq.params.id;
     const { status } = expressReq.body;
 
@@ -135,7 +144,7 @@ app.patch('/api/orders/:id/status', async (expressReq, expressRes) => {
 });
 
 // API: Get all products from Firestore
-app.get('/api/products', async (req, res) => {
+apiRouter.get('/products', async (req, res) => {
     try {
         const snapshot = await firestoreDb.collection('products').get();
         // No auto-seeding; static products are now handled by frontend
@@ -149,7 +158,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // API: Add a new product to Firestore
-app.post('/api/products', async (req, res) => {
+apiRouter.post('/products', async (req, res) => {
     try {
         const { name, price, imgUrl } = req.body;
         if (!name || typeof price !== 'number' || !imgUrl) {
@@ -163,9 +172,95 @@ app.post('/api/products', async (req, res) => {
     }
 });
 
+// API: Update an existing product in Firestore
+apiRouter.put('/products/:id', async (req, res) => {
+    try {
+        try {
+            fs.appendFileSync(path.join(__dirname, 'req.log'), `${new Date().toISOString()} PUT /api/products/${req.params.id} body=${JSON.stringify(req.body)}\n`);
+        } catch (e) {
+            console.error('Put log write failed:', e);
+        }
+        console.log('PUT /api/products/:id called', req.params.id, 'body:', req.body);
+        const { name, price, imgUrl } = req.body;
+        const productId = req.params.id;
+        
+        if (!name || typeof price !== 'number') {
+            return res.status(400).json({ error: 'Invalid product data' });
+        }
+
+        const docRef = firestoreDb.collection('products').doc(productId);
+        const docSnap = await docRef.get();
+        if (!docSnap.exists) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        const updateData = { name, price };
+        if (imgUrl) updateData.imgUrl = imgUrl;
+
+        await docRef.update(updateData);
+        res.json({ success: true, id: productId });
+    } catch (e) {
+        console.error("Firestore update product error:", e);
+        res.status(500).json({ error: "Failed to update product" });
+    }
+});
+
+// API: Delete a product from Firestore
+apiRouter.delete('/products/:id', async (req, res) => {
+    try {
+        const productId = req.params.id;
+        await firestoreDb.collection('products').doc(productId).delete();
+        res.json({ success: true, message: "Product deleted successfully" });
+    } catch (e) {
+        console.error("Firestore delete product error:", e);
+        res.status(500).json({ error: "Failed to delete product" });
+    }
+});
+
+// API: Update order details (admin modification)
+apiRouter.put('/orders/:id', async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { customerName, address, phone } = req.body;
+        
+        const docRef = firestoreDb.collection('orders').doc(orderId);
+        const updateData = {};
+        if (customerName) updateData.customerName = customerName;
+        if (address) updateData.address = address;
+        if (phone) updateData.phone = phone;
+        
+        await docRef.update(updateData);
+        const updatedDoc = await docRef.get();
+        res.json({ success: true, order: updatedDoc.data() });
+    } catch (e) {
+        console.error("Firestore update order error:", e);
+        res.status(500).json({ error: "Failed to update order" });
+    }
+});
+
+// API: Delete an order from Firestore
+apiRouter.delete('/orders/:id', async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        await firestoreDb.collection('orders').doc(orderId).delete();
+        res.json({ success: true, message: "Order deleted successfully" });
+    } catch (e) {
+        console.error("Firestore delete order error:", e);
+        res.status(500).json({ error: "Failed to delete order" });
+    }
+});
+
 // =========================================================================
 // 3. FRONTEND STATIC FILE SERVING
 // =========================================================================
+
+const registeredApiRoutes = apiRouter.stack
+    .filter(layer => layer.route)
+    .map(layer => `${Object.keys(layer.route.methods).map(method => method.toUpperCase()).join(',')} ${layer.route.path}`);
+console.log('Registered API routes:', registeredApiRoutes);
+
+// Mount API router at /api
+app.use('/api', apiRouter);
 
 // Serve static files (HTML, CSS, JS, etc.) from the workspace root
 app.use(express.static(__dirname));

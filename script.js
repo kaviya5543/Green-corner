@@ -113,7 +113,7 @@ function showSection(id) {
 
 // ---------------- STOREFRONT PRODUCTS ----------------
 const staticProducts = [
-    { name: " Yellow Rose", price: 250, imgUrl: "https://agrogreeninfotech.com/wp-content/uploads/2022/12/Yellow-ROSE-.jpg" },
+    // { name: " Yellow Rose", price: 250, imgUrl: "https://agrogreeninfotech.com/wp-content/uploads/2022/12/Yellow-ROSE-.jpg" },
     { name: "Anthuriium", price: 550, imgUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSh7CIywPIIZ4EvLEWKYHLRebGN3DyEMOzv4iLsf7Gtxg&s" },
     { name: "Mari gold", price: 400, imgUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRmPWthBHg_oMb0bpq8MhZ5UVtRaICF8XywPw&s" },
     { name: " Sun flower", price: 450, imgUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRb0bI0kwXkVajXAWY-_WpnXzriokpfrWe46g&s" },
